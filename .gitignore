@@ -1,0 +1,47 @@
+# Maven shade plugin artifacts
+dependency-reduced-pom.xml
+
+
+# Maven Build Output
+target/
+*.jar
+*.war
+
+# IDE Files - IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# IDE Files - Eclipse
+.project
+.classpath
+.settings/
+bin/
+
+# IDE Files - VS Code
+.vscode/
+*.code-workspace
+
+# IDE Files - NetBeans
+nb-configuration.xml
+nbactions.xml
+
+# OS Files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Logs
+logs/
+*.log
+
+# Environment
+.env
+*.local
+
+# Project-specific
+/config.yml

@@ -1,0 +1,12 @@
+name: InvSync
+version: 1.0.0
+main: dev.alexanderkoch.invsync.bukkit.InvSyncBukkit
+api-version: 1.21
+description: Synchronizes player inventories across a Velocity network
+author: Alexander Koch
+
+# Permission for sync (granted to all players by default)
+permissions:
+  invsync.sync:
+    description: Allows player inventory to be synchronized across servers
+    default: true

@@ -1,0 +1,79 @@
+# ───────────────────────────────────────────────────────
+# InvSync Velocity Configuration
+# ───────────────────────────────────────────────────────
+
+database {
+  host = "localhost"
+  port = 3306
+  database = "invsync"
+  username = "minecraft"
+  password = "change_me"
+  # Connection pool size
+  pool-size = 10
+  # Maximum connection lifetime (ms, default 30 min)
+  max-lifetime-ms = 1800000
+}
+
+# Redis cache (optional). When enabled, player data is cached in Redis
+# as a read-through/write-through cache to reduce MariaDB load.
+redis {
+  enabled = false
+  host = "localhost"
+  port = 6379
+  password = ""
+  database = 0
+  # How long cached data lives (seconds) before being re-fetched from DB
+  cache-ttl-seconds = 300
+}
+
+# Performance tuning
+performance {
+  # Maximum plugin message payload size (bytes) before chunking
+  max-chunk-size = 49152
+  # Local in-process cache size (used when Redis is disabled)
+  local-cache-max-size = 10000
+  # Local cache entry expiration in minutes
+  local-cache-expire-minutes = 5
+}
+
+# ───────────────────────────────────────────────────────
+# Server Groups
+# ───────────────────────────────────────────────────────
+# Define groups of servers that share inventory data.
+# Players moving between servers in the same group keep their inventory.
+# Moving to a different group loads that group's saved data.
+server_groups = [
+  {
+    name = "lobby"
+    servers = ["lobby1", "lobby2"]
+    sync = {
+      inventory = true
+      ender_chest = true
+      health = true
+      food = true
+      experience = false
+    }
+  },
+  {
+    name = "survival"
+    servers = ["survival1", "survival2"]
+    sync = {
+      inventory = true
+      ender_chest = false
+      health = true
+      food = true
+      experience = true
+    }
+  },
+  {
+    name = "minigame"
+    servers = ["minigame1", "minigame2"]
+    sync = {
+      inventory = false
+      ender_chest = false
+      health = false
+      food = false
+      experience = false
+    }
+  }
+]
