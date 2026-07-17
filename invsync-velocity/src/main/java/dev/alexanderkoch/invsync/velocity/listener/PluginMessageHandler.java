@@ -51,6 +51,14 @@ public class PluginMessageHandler {
 
     @Subscribe
     public void onPluginMessage(PluginMessageEvent event) {
+        // DIAG: Log ALL PluginMessageEvents received by this handler
+        logger.info("DIAG: PluginMessageEvent received — channel='{}' (class={}), source='{}' (class={}), data={} bytes",
+                event.getIdentifier(),
+                event.getIdentifier().getClass().getName(),
+                event.getSource(),
+                event.getSource().getClass().getName(),
+                event.getData().length);
+
         // Verify it's our channel — compare as strings to avoid any ChannelIdentifier
         // type mismatch issues in Velocity 3.x (ResourceLocation vs MinecraftChannelIdentifier)
         String channelName = event.getIdentifier().toString();

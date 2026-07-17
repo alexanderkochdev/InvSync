@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.0.4] - 2026-07-17
+
+### Changed
+- **Channel-Registrierung im Konstruktor**: `proxy.getChannelRegistrar().register(CHANNEL)` wird
+  jetzt bereits im Plugin-Konstruktor aufgerufen (statt in `onProxyInitialization()`), damit
+  Velocity den Channel kennt, bevor Backend-Server verbinden.
+- **Radikales Diagnose-Logging**: `onProxyInitialization()` loggt Schritt-für-Schritt
+  (Steps 1–7) auf `logger.info`. `PluginMessageHandler.onPluginMessage()` loggt JEDES
+  `PluginMessageEvent` (Channel, Source-Typ, Klasse, Datenlänge) zur Fehleranalyse.
+
 ## [1.0.3] - 2026-07-17
 
 ### Fixed

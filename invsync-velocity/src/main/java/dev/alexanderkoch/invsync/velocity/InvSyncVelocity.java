@@ -56,45 +56,64 @@ public class InvSyncVelocity {
         this.proxy = proxy;
         this.logger = logger;
         this.dataDirectory = dataDirectory;
+
+        // Register channel IMMEDIATELY in constructor — before ProxyInitializeEvent fires.
+        // In Velocity 3.5.0, ChannelRegistrar may not propagate channels to backend servers
+        // if registration happens after the initial minecraft:register handshake.
+        // By registering here (at plugin construction time), Velocity knows about this
+        // channel before any backend server connects.
+        proxy.getChannelRegistrar().register(CHANNEL);
+        logger.info("Registered plugin messaging channel: invsync:main");
     }
 
     @Subscribe
     public void onProxyInitialization(ProxyInitializeEvent event) {
-        logger.info("Initializing InvSync-Velocity v1.0.0...");
+        logger.info("=== InvSync-Velocity initialization step-by-step ===");
 
-        // 1. Load config
+        // Step 1: Load config
+        logger.info("DIAG: Step 1/7 — Loading config...");
         config = new VelocityConfig(dataDirectory, logger);
         config.load();
 
         if (!config.isLoaded()) {
-            logger.error("Failed to load config.yml — plugin will not function correctly!");
+            logger.error("DIAG: FAILED — Config not loaded! Channel registration may be incomplete.");
             return;
         }
+        logger.info("DIAG: Step 1/7 — Config loaded ({} groups)", config.getGroups().size());
 
-        // 2. Initialize database
+        // Step 2: Initialize database
+        logger.info("DIAG: Step 2/7 — Initializing database...");
         databaseManager = new DatabaseManager(config, logger);
         databaseManager.initialize();
         boolean dbHealthy = databaseManager.isHealthy();
         inventoryRepository = new InventoryRepository(databaseManager, logger);
+        logger.info("DIAG: Step 2/7 — Database healthy: {}", dbHealthy);
 
-        // 3. Initialize Redis cache (optional)
+        // Step 3: Initialize Redis cache
+        logger.info("DIAG: Step 3/7 — Initializing Redis cache...");
         redisCacheManager = new RedisCacheManager(config, logger);
         redisCacheManager.initialize();
+        logger.info("DIAG: Step 3/7 — Redis cache initialized");
 
-        // 4. Register plugin messaging channel
-        proxy.getChannelRegistrar().register(CHANNEL);
+        // Step 4: Channel was registered in constructor — verify it's still active
+        logger.info("DIAG: Step 4/7 — Channel 'invsync:main' registered in constructor");
 
-        // 5. Register message handler
+        // Step 5: Register message handler
+        logger.info("DIAG: Step 5/7 — Creating PluginMessageHandler...");
         pluginMessageHandler = new PluginMessageHandler(
                 proxy, config, inventoryRepository, redisCacheManager, logger);
         proxy.getEventManager().register(this, pluginMessageHandler);
+        logger.info("DIAG: Step 5/7 — PluginMessageHandler registered");
 
-        // 6. Register admin commands
+        // Step 6: Register admin commands
+        logger.info("DIAG: Step 6/7 — Registering commands...");
         InvSyncCommand command = new InvSyncCommand(
                 proxy, config, databaseManager, inventoryRepository, redisCacheManager, logger);
         proxy.getCommandManager().register("invsync", command, "isync");
+        logger.info("DIAG: Step 6/7 — Commands registered");
 
-        // 7. Schedule periodic chunk buffer cleanup (every 30 seconds)
+        // Step 7: Schedule periodic chunk buffer cleanup (every 30 seconds)
+        logger.info("DIAG: Step 7/7 — Scheduling chunk cleanup...");
         scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
             Thread t = new Thread(r, "InvSync-ChunkCleanup");
             t.setDaemon(true);
@@ -103,6 +122,7 @@ public class InvSyncVelocity {
         scheduler.scheduleAtFixedRate(
                 () -> pluginMessageHandler.cleanStaleChunks(),
                 30, 30, TimeUnit.SECONDS);
+        logger.info("DIAG: Step 7/7 — Cleanup scheduled");
 
         if (dbHealthy) {
             logger.info("InvSync-Velocity initialized successfully!");
