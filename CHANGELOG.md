@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.0.2] - 2026-07-17
+
+### Fixed
+- **Bukkit ↔ Velocity Plugin-Kommunikation**: `onPluginMessage()` prüft jetzt auch `Player`
+  als `event.getSource()`, da Bukkit's `player.sendPluginMessage()` die Nachricht durch den
+  Player-Tunnel an Velocity sendet (nicht direkt vom Backend-Server). Der Source ist in
+  Velocity 3.x der `Player`, nicht der `RegisteredServer` — der vorherige Check
+  `event.getSource() instanceof RegisteredServer` hat alle Bukkit-Nachrichten blockiert.
+- **Logging**: Empfangene PluginMessages werden auf `logger.info` statt `logger.debug` geloggt
+  ("Received plugin message type '...' from server ...").
+
 ## [1.0.1] - 2026-07-17
 
 ### Fixed

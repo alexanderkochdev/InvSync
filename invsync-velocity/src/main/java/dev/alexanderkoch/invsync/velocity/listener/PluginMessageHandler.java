@@ -54,15 +54,39 @@ public class PluginMessageHandler {
         // Verify it's our channel
         if (!event.getIdentifier().equals(CHANNEL)) return;
 
-        // Only handle messages FROM servers (not TO servers)
-        if (!(event.getSource() instanceof RegisteredServer sourceServer)) return;
-
+        // Mark as handled — prevents forwarding to players
         event.setResult(PluginMessageEvent.ForwardResult.handled());
+
+        // Determine the source server.
+        // Bukkit's player.sendPluginMessage() sends through the player tunnel:
+        //   Bukkit → Player (via custom_payload) → Velocity
+        // In this case event.getSource() is the Player, not the RegisteredServer.
+        // We resolve the actual server via player.getCurrentServer().
+        RegisteredServer sourceServer;
+        if (event.getSource() instanceof RegisteredServer server) {
+            sourceServer = server;
+        } else if (event.getSource() instanceof Player player) {
+            sourceServer = player.getCurrentServer()
+                    .map(conn -> conn.getServer())
+                    .orElse(null);
+            if (sourceServer == null) {
+                logger.warn("Received message from player {} but they have no current server", player.getUsername());
+                return;
+            }
+            logger.debug("Message from {} via player tunnel on server {}",
+                    player.getUsername(), sourceServer.getServerInfo().getName());
+        } else {
+            // Unknown source type — not a server or player message we can handle
+            return;
+        }
 
         try {
             byte[] data = event.getData();
             JsonObject message = InvSyncChannel.fromBytes(data);
             String type = message.get(InvSyncChannel.KEY_TYPE).getAsString();
+
+            logger.info("Received plugin message type '{}' from server {}",
+                    type, sourceServer.getServerInfo().getName());
 
             switch (type) {
                 case InvSyncChannel.TYPE_LOAD_PLAYER -> handleLoadPlayer(message, sourceServer);
@@ -71,7 +95,7 @@ public class PluginMessageHandler {
                 default -> logger.warn("Unknown message type from {}: {}", sourceServer.getServerInfo().getName(), type);
             }
         } catch (Exception e) {
-            logger.error("Failed to process plugin message from {}: {}", 
+            logger.error("Failed to process plugin message from {}: {}",
                     sourceServer.getServerInfo().getName(), e.getMessage());
         }
     }
