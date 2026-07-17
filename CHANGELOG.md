@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.0.3] - 2026-07-17
+
+### Fixed
+- **PluginMessage Channel-Vergleich**: Channel-Identifier wird jetzt als String verglichen
+  (`"invsync:main".equals(channelName)`) statt als Object-Equals. In Velocity 3.5.0 kann der
+  `event.getIdentifier()` ein anderer Typ sein (z.B. ResourceLocation) als der registrierte
+  `MinecraftChannelIdentifier`, was den `equals()`-Vergleich fehlschlagen lässt.
+- **Diagnose-Logging**: Empfangene PluginMessages werden mit Channel, Source-Typ und
+  Datenlänge geloggt — sofort sichtbar bei der nächsten Spieler-Verbindung.
+
+### Changed
+- `PluginMessageHandler.onPluginMessage()`: String-basierter Channel-Vergleich + extrahierte
+  `resolveSourceServer()`-Methode für cleaner Source-Resolution-Code
+
 ## [1.0.2] - 2026-07-17
 
 ### Fixed

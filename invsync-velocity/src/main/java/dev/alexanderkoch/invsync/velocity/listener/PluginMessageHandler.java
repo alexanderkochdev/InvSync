@@ -51,8 +51,14 @@ public class PluginMessageHandler {
 
     @Subscribe
     public void onPluginMessage(PluginMessageEvent event) {
-        // Verify it's our channel
-        if (!event.getIdentifier().equals(CHANNEL)) return;
+        // Verify it's our channel — compare as strings to avoid any ChannelIdentifier
+        // type mismatch issues in Velocity 3.x (ResourceLocation vs MinecraftChannelIdentifier)
+        String channelName = event.getIdentifier().toString();
+        if (!"invsync:main".equals(channelName)) return;
+
+        logger.info("Received plugin message on channel '{}' from source: {} (type: {})",
+                channelName, event.getSource(),
+                event.getSource().getClass().getName());
 
         // Mark as handled — prevents forwarding to players
         event.setResult(PluginMessageEvent.ForwardResult.handled());
@@ -62,31 +68,16 @@ public class PluginMessageHandler {
         //   Bukkit → Player (via custom_payload) → Velocity
         // In this case event.getSource() is the Player, not the RegisteredServer.
         // We resolve the actual server via player.getCurrentServer().
-        RegisteredServer sourceServer;
-        if (event.getSource() instanceof RegisteredServer server) {
-            sourceServer = server;
-        } else if (event.getSource() instanceof Player player) {
-            sourceServer = player.getCurrentServer()
-                    .map(conn -> conn.getServer())
-                    .orElse(null);
-            if (sourceServer == null) {
-                logger.warn("Received message from player {} but they have no current server", player.getUsername());
-                return;
-            }
-            logger.debug("Message from {} via player tunnel on server {}",
-                    player.getUsername(), sourceServer.getServerInfo().getName());
-        } else {
-            // Unknown source type — not a server or player message we can handle
-            return;
-        }
+        RegisteredServer sourceServer = resolveSourceServer(event);
+        if (sourceServer == null) return;
 
         try {
             byte[] data = event.getData();
             JsonObject message = InvSyncChannel.fromBytes(data);
             String type = message.get(InvSyncChannel.KEY_TYPE).getAsString();
 
-            logger.info("Received plugin message type '{}' from server {}",
-                    type, sourceServer.getServerInfo().getName());
+            logger.info("Processing message type '{}' from server {} ({} bytes)",
+                    type, sourceServer.getServerInfo().getName(), data.length);
 
             switch (type) {
                 case InvSyncChannel.TYPE_LOAD_PLAYER -> handleLoadPlayer(message, sourceServer);
@@ -98,6 +89,41 @@ public class PluginMessageHandler {
             logger.error("Failed to process plugin message from {}: {}",
                     sourceServer.getServerInfo().getName(), e.getMessage());
         }
+    }
+
+    /**
+     * Resolves the source RegisteredServer from a PluginMessageEvent.
+     * <p>
+     * When Bukkit calls {@code player.sendPluginMessage()}, the message travels through
+     * the player tunnel (Bukkit → Player → Velocity). In Velocity 3.x, the event source
+     * is the {@link Player}, not the {@link RegisteredServer}.
+     * This method handles both cases:
+     * <ul>
+     *   <li>Direct source: {@code event.getSource() instanceof RegisteredServer}</li>
+     *   <li>Player tunnel: resolves the server via {@code player.getCurrentServer()}</li>
+     * </ul>
+     */
+    private RegisteredServer resolveSourceServer(PluginMessageEvent event) {
+        if (event.getSource() instanceof RegisteredServer server) {
+            return server;
+        }
+
+        if (event.getSource() instanceof Player player) {
+            RegisteredServer server = player.getCurrentServer()
+                    .map(conn -> conn.getServer())
+                    .orElse(null);
+            if (server == null) {
+                logger.warn("Received message from player {} but they have no current server", player.getUsername());
+            } else {
+                logger.debug("Resolved source server '{}' via player tunnel for {}",
+                        server.getServerInfo().getName(), player.getUsername());
+            }
+            return server;
+        }
+
+        logger.warn("Received plugin message from unknown source type: {} — {}",
+                event.getSource().getClass().getName(), event.getSource());
+        return null;
     }
 
     // ── Load Player ────────────────────────────────────────────────
