@@ -4,6 +4,7 @@ import com.google.gson.JsonObject;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.connection.PluginMessageEvent;
 import com.velocitypowered.api.proxy.Player;
+import com.velocitypowered.api.proxy.ServerConnection;
 import com.velocitypowered.api.proxy.messages.MinecraftChannelIdentifier;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
 import dev.alexanderkoch.invsync.api.InvSyncChannel;
@@ -104,13 +105,11 @@ public class PluginMessageHandler {
     /**
      * Resolves the source RegisteredServer from a PluginMessageEvent.
      * <p>
-     * When Bukkit calls {@code player.sendPluginMessage()}, the message travels through
-     * the player tunnel (Bukkit → Player → Velocity). In Velocity 3.x, the event source
-     * is the {@link Player}, not the {@link RegisteredServer}.
-     * This method handles both cases:
+     * In Velocity 3.x, the event source can be one of:
      * <ul>
-     *   <li>Direct source: {@code event.getSource() instanceof RegisteredServer}</li>
-     *   <li>Player tunnel: resolves the server via {@code player.getCurrentServer()}</li>
+     *   <li>{@link RegisteredServer} — direct server message</li>
+     *   <li>{@link Player} — message via player tunnel (Bukkit's sendPluginMessage)</li>
+     *   <li>{@link ServerConnection} — Velocity 3.5.0 concrete class (VelocityServerConnection)</li>
      * </ul>
      */
     private RegisteredServer resolveSourceServer(PluginMessageEvent event) {
@@ -124,11 +123,13 @@ public class PluginMessageHandler {
                     .orElse(null);
             if (server == null) {
                 logger.warn("Received message from player {} but they have no current server", player.getUsername());
-            } else {
-                logger.debug("Resolved source server '{}' via player tunnel for {}",
-                        server.getServerInfo().getName(), player.getUsername());
             }
             return server;
+        }
+
+        // Velocity 3.5.0: source is a concrete ServerConnection (VelocityServerConnection)
+        if (event.getSource() instanceof ServerConnection conn) {
+            return conn.getServer();
         }
 
         logger.warn("Received plugin message from unknown source type: {} — {}",

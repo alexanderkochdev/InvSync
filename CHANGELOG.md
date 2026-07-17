@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.6] - 2026-07-17
+
+### Fixed
+- **Source-Type-Resolution**: Velocity 3.5.0 liefert `VelocityServerConnection` (konkrete Klasse)
+  als `event.getSource()`, nicht `ServerConnection` (Interface). Der korrekte Import
+  `com.velocitypowered.api.proxy.ServerConnection` (ohne `.server`) + `instanceof ServerConnection`
+  Check in `resolveSourceServer()` fängt diesen Fall jetzt ab.
+
 ## [1.0.5] - 2026-07-17
 
 ### Fixed
