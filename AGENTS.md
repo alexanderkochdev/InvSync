@@ -43,10 +43,11 @@ dev.alexanderkoch.invsync.bukkit
 ```
 dev.alexanderkoch.invsync.velocity
 ├── InvSyncVelocity.java              # Main class (Velocity @Plugin) + init order
+│   # Logs "degraded mode" if database fails — plugin continues running without DB
 ├── config/
-│   └── VelocityConfig.java           # HOCON config: DB, Redis, Performance, Groups
+│   └── VelocityConfig.java           # HOCON config: DB (optional url override), Redis, Performance, Groups
 ├── database/
-│   ├── DatabaseManager.java          # HikariCP pool + schema creation (data_version column)
+│   ├── DatabaseManager.java          # HikariCP pool + explicit JDBC driver loading + schema creation
 │   └── InventoryRepository.java      # CRUD with versioning + sync-rule filtering on save
 ├── cache/
 │   └── RedisCacheManager.java        # Optional Redis read/write-through cache (Jedis)
@@ -230,6 +231,11 @@ dev.alexanderkoch.invsync.velocity
 
 ```hocon
 database {
+  # Full JDBC URL override. If set, overrides host/port/database above.
+  # Useful if the shaded MariaDB driver is not auto-discovered in your
+  # Java/plugin-container environment — switch to jdbc:mysql:// with a
+  # MySQL Connector/J driver installed on the classpath instead.
+  # url = "jdbc:mysql://127.0.0.1:3306/shared_inventories"
   host = "localhost"
   port = 3306
   database = "invsync"
@@ -355,3 +361,33 @@ No code changes needed — just edit `config.yml` on Velocity:
 4. Try `/invsync status` on Velocity to check DB/Redis health
 5. Try `/invsync sync <player>` to force a sync
 6. Check that Bukkit servers have `invsync.sync` permission for players
+
+### JDBC Driver / "No suitable driver" Error
+
+If you see `No suitable driver for jdbc:mariadb://...` in the Velocity logs:
+
+**Root cause**: The MariaDB JDBC driver is shaded (relocated) inside the InvSync-Velocity JAR. In
+classloader-isolated environments (Velocity plugin system), Java's `ServiceLoader` may use the
+wrong classloader and fail to auto-discover the relocated driver class.
+
+**Solution A** — Use `jdbc:mysql://` via the config override (recommended alternative):
+```hocon
+database {
+  url = "jdbc:mysql://127.0.0.1:3306/shared_inventories"
+}
+```
+Make sure a MySQL Connector/J driver is available (Paper ships one; for Velocity you may need to
+install it manually).
+
+**Solution B** — Explicit driver class loading (built into code):
+The `DatabaseManager` now tries to explicitly load the shaded MariaDB driver
+(`dev.alexanderkoch.invsync.velocity.libs.mariadb.Driver`) before creating the HikariCP pool.
+This bypasses the ServiceLoader classloader issue. If the shaded driver is present in the JAR,
+it will be used.
+
+**Solution C** — Ensure the `ServicesResourceTransformer` is active in the Maven build:
+Check `pom.xml` for:
+```xml
+<transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+```
+This ensures `META-INF/services/java.sql.Driver` is properly merged and relocated during shading.

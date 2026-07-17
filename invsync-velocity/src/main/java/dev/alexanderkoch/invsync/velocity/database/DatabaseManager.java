@@ -30,6 +30,12 @@ public class DatabaseManager implements AutoCloseable {
         hikariConfig.setJdbcUrl(config.getJdbcUrl());
         hikariConfig.setUsername(config.getDbUsername());
         hikariConfig.setPassword(config.getDbPassword());
+
+        // Explicit driver loading — required in classloader-isolated environments
+        // (Velocity plugin system) where the ServiceLoader may fail to auto-discover
+        // the shaded MariaDB JDBC driver. See AGENTS.md for details.
+        loadJdbcDriver(hikariConfig);
+
         hikariConfig.setMaximumPoolSize(config.getDbPoolSize());
         hikariConfig.setMaxLifetime(config.getDbMaxLifetime());
         hikariConfig.setMinimumIdle(2);
@@ -48,11 +54,50 @@ public class DatabaseManager implements AutoCloseable {
         try {
             dataSource = new HikariDataSource(hikariConfig);
             createSchema();
-            logger.info("Database connection pool initialized ({}:{}/{})",
-                    config.getDbHost(), config.getDbPort(), config.getDbName());
+            logger.info("Database connection pool initialized");
         } catch (Exception e) {
-            logger.error("Failed to initialize database connection pool", e);
+            logger.error("Failed to initialize database connection pool. "
+                    + "Check that a compatible JDBC driver is available for: {}",
+                    config.getJdbcUrl(), e);
         }
+    }
+
+    /**
+     * Explicitly loads a JDBC driver class and registers it with HikariCP.
+     * Tries multiple driver class names as fallbacks (shaded MariaDB,
+     * unshaded MariaDB, MySQL Connector/J).
+     *
+     * In a shaded JAR, the driver class is relocated from its original package
+     * (e.g. {@code org.mariadb.jdbc.Driver}) to the shaded package
+     * (e.g. {@code dev.alexanderkoch.invsync.velocity.libs.mariadb.Driver}).
+     * Java's {@link java.sql.DriverManager} discovers drivers via
+     * {@link java.util.ServiceLoader} reading {@code META-INF/services/java.sql.Driver},
+     * but in classloader-isolated environments (plugin containers like Velocity),
+     * the ServiceLoader may use the wrong classloader. This method works around that
+     * by loading the driver class explicitly via the plugin's own classloader.
+     */
+    private void loadJdbcDriver(HikariConfig hikariConfig) {
+        String[] candidates = {
+            "dev.alexanderkoch.invsync.velocity.libs.mariadb.Driver",
+            "org.mariadb.jdbc.Driver",
+            "com.mysql.cj.jdbc.Driver",
+            "com.mysql.jdbc.Driver"
+        };
+
+        for (String driverClass : candidates) {
+            try {
+                Class.forName(driverClass);
+                hikariConfig.setDriverClassName(driverClass);
+                logger.debug("Explicitly loaded JDBC driver: {}", driverClass);
+                return;
+            } catch (ClassNotFoundException e) {
+                // Try next candidate
+            }
+        }
+
+        logger.warn("No JDBC driver found via explicit loading. "
+                + "Falling back to ServiceLoader/DriverManager auto-discovery for URL: {}",
+                config.getJdbcUrl());
     }
 
     /** Create tables if they don't exist. Updated schema with data_version column. */

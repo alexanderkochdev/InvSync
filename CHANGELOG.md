@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.0.1] - 2026-07-17
+
+### Fixed
+- **JDBC Driver Loading (Velocity)**: Explizites Driver-Loading in `DatabaseManager.initialize()`
+  umgeht das Classloader-Isolationsproblem in Velocity's Plugin-System. Der shaded MariaDB
+  JDBC-Treiber wird nun via `Class.forName()` geladen und explizit per
+  `hikariConfig.setDriverClassName()` gesetzt — funktioniert auch wenn der `ServiceLoader`
+  in isolierten Classloadern versagt.
+- **Config**: Neue `database.url`-Option in `config.yml` erlaubt direkte Angabe einer
+  JDBC-URL (z.B. `jdbc:mysql://127.0.0.1:3306/shared_inventories`), falls der MariaDB-Treiber
+  im Velocity-Plugin-System nicht ladbar ist.
+- **Logging**: `InvSyncVelocity` loggt korrekt "DEGRADED MODE" statt irreführend
+  "initialized successfully", wenn die Datenbank nicht erreichbar ist.
+
+### Changed
+- `VelocityConfig.java`: `getJdbcUrl()` prüft zuerst `database.url`-Override-Feld; neuer `getDbUrl()`-Getter
+- `DatabaseManager.java`: Neue `loadJdbcDriver()`-Methode mit 4 Driver-Kandidaten (shaded MariaDB,
+  unshaded MariaDB, MySQL Connector/J neu + alt)
+- `InvSyncVelocity.java`: Health-Check nach DB-Initialisierung für korrektes Logging
+- `AGENTS.md`: Config-Doku aktualisiert + JDBC-Debugging-Sektion hinzugefügt
+
 ## [1.0.0] - 2026-07-14
 
 ### Added

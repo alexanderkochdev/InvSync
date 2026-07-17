@@ -31,6 +31,7 @@ public class VelocityConfig {
     private boolean loaded = false;
 
     // ── Database Config ────────────────────────────────────────────
+    private String dbUrl;
     private String dbHost = "localhost";
     private int dbPort = 3306;
     private String dbName = "invsync";
@@ -103,6 +104,7 @@ public class VelocityConfig {
             root = loader.load();
 
             // Database
+            dbUrl = getString("database.url", null);
             dbHost = getString("database.host", dbHost);
             dbPort = getInt("database.port", dbPort);
             dbName = getString("database.database", dbName);
@@ -190,8 +192,16 @@ public class VelocityConfig {
     public long getDbMaxLifetime() { return dbMaxLifetime; }
 
     public String getJdbcUrl() {
+        if (dbUrl != null && !dbUrl.isEmpty()) {
+            return dbUrl;
+        }
         return "jdbc:mariadb://" + dbHost + ":" + dbPort + "/" + dbName
-                + "?useSSL=false&serverTimezone=UTC";
+                + "?useSSL=false&serverTimezone=UTC&characterEncoding=utf8mb4";
+    }
+
+    /** Returns the configured full JDBC URL override, or null if using host/port/database fields. */
+    public String getDbUrl() {
+        return dbUrl;
     }
 
     // Redis
@@ -261,6 +271,11 @@ public class VelocityConfig {
                 "# ───────────────────────────────────────────────────────\n" +
                 "\n" +
                 "database {\n" +
+                "  # Full JDBC URL override. If set, overrides host/port/database above.\n" +
+                "  # Useful when you need a different protocol like jdbc:mysql://\n" +
+                "  # if the MariaDB JDBC driver has shading issues in your environment.\n" +
+                "  # Example: url = \"jdbc:mysql://127.0.0.1:3306/shared_inventories\"\n" +
+                "  # url = \"jdbc:mariadb://localhost:3306/invsync\"\n" +
                 "  host = \"localhost\"\n" +
                 "  port = 3306\n" +
                 "  database = \"invsync\"\n" +

@@ -74,6 +74,7 @@ public class InvSyncVelocity {
         // 2. Initialize database
         databaseManager = new DatabaseManager(config, logger);
         databaseManager.initialize();
+        boolean dbHealthy = databaseManager.isHealthy();
         inventoryRepository = new InventoryRepository(databaseManager, logger);
 
         // 3. Initialize Redis cache (optional)
@@ -103,7 +104,13 @@ public class InvSyncVelocity {
                 () -> pluginMessageHandler.cleanStaleChunks(),
                 30, 30, TimeUnit.SECONDS);
 
-        logger.info("InvSync-Velocity initialized successfully!");
+        if (dbHealthy) {
+            logger.info("InvSync-Velocity initialized successfully!");
+        } else {
+            logger.warn("InvSync-Velocity initialized in DEGRADED MODE — database unavailable."
+                    + " Inventory sync will not work until the database connection is restored."
+                    + " Check the database URL, credentials, and JDBC driver availability.");
+        }
         logger.info("Registered {} server groups", config.getGroups().size());
     }
 
