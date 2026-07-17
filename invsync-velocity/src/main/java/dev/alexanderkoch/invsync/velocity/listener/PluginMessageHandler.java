@@ -59,13 +59,15 @@ public class PluginMessageHandler {
                 event.getSource().getClass().getName(),
                 event.getData().length);
 
-        // Verify it's our channel — compare as strings to avoid any ChannelIdentifier
-        // type mismatch issues in Velocity 3.x (ResourceLocation vs MinecraftChannelIdentifier)
-        String channelName = event.getIdentifier().toString();
+        // Extract the base channel name before any suffix.
+        // In Velocity 3.5.0, the channel identifier toString() appends " (modern)"
+        // for modern-forwarding channels, e.g. "invsync:main (modern)".
+        // We split on whitespace to get just "invsync:main".
+        String channelName = event.getIdentifier().toString().split("\\s+")[0];
         if (!"invsync:main".equals(channelName)) return;
 
         logger.info("Received plugin message on channel '{}' from source: {} (type: {})",
-                channelName, event.getSource(),
+                event.getIdentifier().toString(), event.getSource(),
                 event.getSource().getClass().getName());
 
         // Mark as handled — prevents forwarding to players

@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.0.5] - 2026-07-17
+
+### Fixed
+- **PluginMessage Channel-Parsing**: Velocity 3.5.0 hängt `(modern)` an den Channel-Namen
+  (`"invsync:main (modern)"` statt `"invsync:main"`) bei modern-forwarding Channels.
+  Der Channel-Name wird jetzt korrekt per `split("\\s+")[0]` vor dem Leerzeichen extrahiert.
+  Dies war die eigentliche Ursache — alle vorherigen Fixes (String-Compare, Player-Source,
+  Konstruktor-Registrierung) konnten nicht greifen, weil der Channel-Compare nie matchte.
+
 ## [1.0.4] - 2026-07-17
 
 ### Changed
